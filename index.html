@@ -6,6 +6,24 @@
   <title>Fund Me App</title>
 </head>
 <body>
-  What's good?
+  <script>
+    async function connect() {
+      if(typeof(window.ethereum) !== undefined) {
+        console.log('ethereum wallet, e.g. metamask, installed -- connecting')
+        window.ethereum.request(
+          {method: 'eth_requestAccounts'}
+        )
+      }
+      else {
+        console.log('no ethereum wallet found')
+      }
+    }
+  </script>
+  <button
+    id="connectButton"
+    onclick="connect()"
+  >
+    Connect
+  </button>
 </body>
 </html>
