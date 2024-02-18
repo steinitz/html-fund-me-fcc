@@ -5,8 +5,10 @@ import {abi, contractAddress} from "./constants.js"
 
 const connectButton = document.getElementById("connectButton")
 const fundButton = document.getElementById("fundButton")
+const balanceButton = document.getElementById("balanceButton")
 connectButton.onclick = connect
 fundButton.onclick = fund
+balanceButton.onclick = getBalance
 
 const getEthWallet = () => window.ethereum
 
@@ -31,7 +33,7 @@ async function connect() {
       console.log('caught error', {e})
     }
     connectButton.innerHTML = "Connected"
-    console.log('Connected')
+    console.  log('Connected')
   }
   else {
     connectButton.innerHTML = "Please install Metamask"
@@ -39,21 +41,59 @@ async function connect() {
   }
 }
 
+const getProviderAndSigner = async () => {
+  // get a connection to the blockchain
+  const provider = new ethers.BrowserProvider(getEthWallet())
+  const signer = await provider.getSigner()
+  return {provider, signer}
+}
+
+async function getBalance() {
+  if(isEthWalletInstalled()) {
+    const {provider} = await getProviderAndSigner();
+    const balance = await provider.getBalance(contractAddress)
+    console.log(ethers.formatEther(balance))
+  }
+}
+
 // fund 
 // async function fund(ethAmount) {
 async function fund() {
-  const ethAmount = '7' // temporary until we pass the value as an argument or...
+  const ethAmount = document.getElementById("ethAmount").value
   console.log(`Funding with ${ethAmount}`)
-  if(isEthWalletInstalled()) {
-    // get a connection to the blockchain
-    const provider = new ethers.BrowserProvider(getEthWallet())
-
-    const signer = await provider.getSigner()
+  if (isEthWalletInstalled()) {
+    const {signer, provider} = await  getProviderAndSigner()
     const contract = new ethers.Contract(contractAddress, abi, signer)
-    /* const transactionRespnse = */ await contract.fund(
-      {value: ethers.parseEther(ethAmount)}
-    )
+    try {
+      const transactionResponse = await contract.fund(
+        {value: ethers.parseEther(ethAmount)}
+      )
+      await listenForTransactionMine(transactionResponse, provider)
+      console.log('Transaction mine completed')
+    }
+    catch(error) {
+      console.log({error})
+    }
   }
+}
+
+const listenForTransactionMine = (transactionResponse, provider) => {
+  console.log(`Mining ${transactionResponse.hash}...`)
+  return new Promise(
+    (resolve) => {
+      provider.once(
+        transactionResponse.hash, 
+        async (transactionReceipt) => {
+          // console.log({transactionReceipt})
+          const confirmations = await transactionReceipt.confirmations()
+          console.log(
+            `Completed with ${confirmations} confirmations`
+          )
+          resolve()
+        }
+      )
+    }
+  )
 }
 
 // withdraw
