@@ -5,12 +5,23 @@ import {abi, contractAddress} from "./constants.js"
 
 const connectButton = document.getElementById("connectButton")
 const fundButton = document.getElementById("fundButton")
+const withdrawButton = document.getElementById("withdrawButton")
 const balanceButton = document.getElementById("balanceButton")
 connectButton.onclick = connect
 fundButton.onclick = fund
+withdrawButton.onclick = withdraw
 balanceButton.onclick = getBalance
 
-const getEthWallet = () => window.ethereum
+const getEthWallet = () => {
+  const result = window.ethereum
+  if (result) {
+    return result
+  }
+  else {
+    connectButton.innerHTML = "Please install Metamask"
+    console.log('no ethereum wallet found')
+  }
+}
 
 const isEthWalletInstalled = () => {
   return typeof getEthWallet() !== "undefined"
@@ -49,31 +60,61 @@ const getProviderAndSigner = async () => {
 }
 
 async function getBalance() {
+  console.log('getBalance running')
   if(isEthWalletInstalled()) {
+    console.log('getting Balance')
     const {provider} = await getProviderAndSigner();
     const balance = await provider.getBalance(contractAddress)
     console.log(ethers.formatEther(balance))
+  }
+  else {
+    withdrawButton.innerHTML = "Please install MetaMask"
   }
 }
 
 // fund 
 // async function fund(ethAmount) {
 async function fund() {
-  const ethAmount = document.getElementById("ethAmount").value
+  const ethAmountElement = document.getElementById("ethAmount")
+  const ethAmount = ethAmountElement.value || ethAmountElement.getAttribute("placeholder")
   console.log(`Funding with ${ethAmount}`)
   if (isEthWalletInstalled()) {
-    const {signer, provider} = await  getProviderAndSigner()
-    const contract = new ethers.Contract(contractAddress, abi, signer)
+    const {signer, provider} = await getProviderAndSigner()
+    const contract = new  ethers.Contract(contractAddress, abi, signer)
+    console.log({contract})
     try {
       const transactionResponse = await contract.fund(
         {value: ethers.parseEther(ethAmount)}
       )
       await listenForTransactionMine(transactionResponse, provider)
-      console.log('Transaction mine completed')
     }
     catch(error) {
       console.log({error})
     }
+  }
+  else {
+    fundButton.innerHTML = "Please install MetaMask"
+  }
+}
+
+async function withdraw() {
+  console.log(`Withdrawing...`)
+  if (isEthWalletInstalled()) {
+    const {signer, provider} = await getProviderAndSigner()
+    await provider.send('eth_requestAccounts', []) // Patrick did this.  Why?
+    const contract = new ethers.Contract(contractAddress, abi, signer)
+    console.log({contract})
+    try {
+      // const transactionResponse = await contract.withdraw()
+      const transactionResponse = await contract.withdraw()
+      await listenForTransactionMine(transactionResponse, provider)
+    }
+    catch(error) {
+      console.error({error})
+    }
+  }
+  else {
+    withdrawButton.innerHTML = "Please install MetaMask"
   }
 }
 
@@ -96,4 +137,3 @@ const listenForTransactionMine = (transactionResponse, provider) => {
   )
 }
 
-// withdraw
